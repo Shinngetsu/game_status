@@ -3,7 +3,7 @@ from .bases import (
     StatBase, StatEffect)
 
 from .effects import (
-    bonus, buff, default,
+    bonus, buffed, default,
     grow, maxim, minim, turn)
 
 from .stats import (
