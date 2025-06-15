@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from bases import StatEffect, StatBase, STATS, SVAL, getval
+from .bases import StatEffect, StatBase, STATS, SVAL, getval
 import operator as op
 from mathobj import rjoins, MathObj
 

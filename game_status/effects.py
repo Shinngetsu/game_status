@@ -1,4 +1,4 @@
-from bases import StatEffect, StatAct, getval
+from .bases import StatEffect, StatAct, getval
 
 class grow(StatEffect):
     """基礎値にレベルアップ概念を導入する"""
@@ -16,7 +16,7 @@ class grow(StatEffect):
         self.gainexp.register(cls)
         self.gainpot.register(cls)
 
-class buff(StatEffect):
+class buffed(StatEffect):
     """バフを適用"""
     @StatAct.actmethod
     def addbuff(self, obj, buff):
