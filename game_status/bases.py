@@ -1,6 +1,11 @@
 import abc
 from mathobj import MathObj
 
+import typing, collections.abc as ctyping
+
+STATS = typing.TypeVar("STATS")
+SVAL = typing.TypeVar("SVAL")
+
 class Buff(abc.ABC):
     """各ステータス値へのバフを適用する。
     e_<statname>メソッドを定義することで、
@@ -15,9 +20,8 @@ class Buff(abc.ABC):
     def turn(self, buffs): pass
 
 class StatAct:
-    """ステータス値に紐づく操作。
-    操作はステータス値ごとに登録でき、
-    対外的に呼び出されたときに対象のステータス値に対して実行される。"""
+    """## ステータス値に紐づく操作
+    - 操作をステータス値ごとに登録"""
     class actfunc:
         """操作関数"""
         def __init__(self, func): self.__func = func
@@ -50,8 +54,8 @@ class StatAct:
         if name in self._acts: self._acts[name](obj, *a, **ka)
         else: self._default(obj, name, *a, **ka)
 
-class StatBase(abc.ABC):
-    """このクラスを継承してattrディスクリプタを定義する"""
+class GameObject(abc.ABC):
+    """ゲームオブジェクトの素体"""
     def __init__(self):
         self._buffs = []
     @property
@@ -60,27 +64,27 @@ class StatBase(abc.ABC):
         return self._buffs
     @StatAct
     def _turn_act(self, name):
-        """ターン経過時の各ステータス値の処理"""
+        """ターン経過時の各ステータス値に対する処理"""
     def _turn(self):
         """ターン経過時の一般処理(オーバーライドして使用)"""
     def turn(self):
         """ターン経過時の処理を実行"""
         self._turn()
         for n, v in vars(type(self)).items():
-            if isinstance(v, AttrBase): self._turn_act(self, n)
+            if isinstance(v, StatBase): self._turn_act(self, n)
         for b in self.buffs[:]: b.turn(self.buffs)
 
-class AttrEffect[STATS, SVAL](abc.ABC):
+class StatEffect(abc.ABC):
     """ステータス値への効果"""
     @abc.abstractmethod
     def set_name(self, cls:type[STATS], name:str):
         """Attrディスクリプタの__set_name__が呼び出されたときに呼ばれる"""
     @abc.abstractmethod
-    def get(self, obj:STATS, cls:type[STATS], val:SVAL) -> SVAL:
+    def get(self, val:SVAL, obj:STATS, cls:type[STATS]) -> SVAL:
         """Attrディスクリプタの__get__が呼び出されたときに呼ばれる"""
         return val
 
-class AttrBase[STATS, SVAL](MathObj):
+class StatBase(MathObj):
     """ステータス値のディスクリプタ"""
     def __set_name__(self, cls:type[STATS], name:str):
         """宣言時に呼び出される"""
@@ -88,9 +92,9 @@ class AttrBase[STATS, SVAL](MathObj):
         """ステータス値を取得する"""
         if obj is None: return self
 
-def getval[STATS, SVAL](
-        obj:STATS, cls:type[STATS],
-        a:AttrBase[STATS, SVAL]|SVAL) -> SVAL:
+def getval(
+        a:StatBase[STATS, SVAL]|SVAL,
+        obj:STATS, cls:type[STATS]) -> SVAL:
     """ステータスなら値取得、さもなくばaをそのまま返す"""
-    if isinstance(a, AttrBase): return a.__get__(obj, cls)
+    if isinstance(a, StatBase): return a.__get__(obj, cls)
     return a
