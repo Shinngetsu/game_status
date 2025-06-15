@@ -5,19 +5,6 @@ import typing, collections.abc as ctyping
 STATS = typing.TypeVar("STATS")
 SVAL = typing.TypeVar("SVAL")
 
-class Buff(abc.ABC):
-    """## 各ステータス値へのバフを適用する
-    e_<statname>メソッドを定義することで、
-    特定のステータス値に対する効果を定義できる。"""
-    @property
-    @abc.abstractmethod
-    def name(self): return type(self).__name__
-    def effect(self, stat, vname, val):
-        return (getattr(self, f'e_{vname}')(stat, val)
-                if hasattr(self, f'e_{vname}') else val)
-    @abc.abstractmethod
-    def turn(self, buffs): pass
-
 class StatAct:
     """# ステータス値に紐づく操作
     - ステータス値ごとの操作を登録
