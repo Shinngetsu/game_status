@@ -27,15 +27,21 @@ class Status(GameObject):
 ```python
 class RecoverHP(buff.Buff):
   duration = Point(per_turn(-1), minim(0), default=arg('duration', default=1))
-  ""
+  "効果時間"
 
   effect = Value(default(arg('effect', default=1.)))
-  ""
+  "品質"
 
   HP = buff.Add(effect)
-  ""
+  "HPの変化"
 
-  @property
-  def is_
+  @property # バフの終了条件
+  def is_disabled(self): return self.duration == 0
 ```
 
+## これから
+- スペック（仕様）テストの充実
+- もっと分かりやすい設計の模索
+- リアルタイム性
+  - 計算に経過時間を考慮できるようにする
+  - 処理高速化の模索
