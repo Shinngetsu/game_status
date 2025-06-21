@@ -5,7 +5,7 @@ from .stats import Stat, StatBase
 
 from typing import Self, Any
 
-class Buff(abc.ABC):
+class Buff:
     """## 各ステータス値へのバフを適用する
     サブクラスで実装したバフステータスは、
     対象となるゲームオブジェクトのステータス値に効果を与える"""
@@ -13,8 +13,7 @@ class Buff(abc.ABC):
         for d in dir(self):
             self.act(d, stat)
     @property
-    @abc.abstractmethod
-    def is_disabled(self) -> bool: return False
+    def is_disabled(self) -> bool: return True
     effect = StatAct()
     act = StatAct()
 
@@ -31,7 +30,7 @@ class Add(ActiveBuffStatus):
     def __set_name__(self, cls, name):
         self.__name = name
         self.__cls = cls
-        self.act.register(cls, name)
+        self.act.register(cls, name, self)
     def __get__(self, obj, cls = None):
         if obj is None: return self
         return getval(self.__stat, obj, cls)
@@ -45,7 +44,7 @@ class Disable(ActiveBuffStatus):
         self.__stat = stat
     def __set_name__(self, cls, name):
         self.__cls = cls
-        self.act.register(cls, name)
+        self.act.register(cls, name, self)
     def __get__(self, obj, cls = None):
         if obj is None: return self
         return getval(self.__stat, obj, cls)

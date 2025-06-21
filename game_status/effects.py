@@ -13,8 +13,8 @@ class grow(StatEffect):
     def set_name(self, cls, name):
         self._vname = f'_{cls.__name__}__{name}_v'
         self._pname = f'_{cls.__name__}__{name}_p'
-        self.gainexp.register(cls)
-        self.gainpot.register(cls)
+        self.gainexp.register(cls, name, self)
+        self.gainpot.register(cls, name, self)
 
 class buffed(StatEffect):
     """バフを適用"""
@@ -25,7 +25,7 @@ class buffed(StatEffect):
         getattr(obj, "buffs").append(buff)
     def set_name(self, cls, name):
         self._name = name
-        self.addbuff.register(cls)
+        self.addbuff.register(cls, name, self)
     def get(self, val, obj, cls):
         if hasattr(obj, "buffs"):
             buffs = getattr(obj, "buffs")
@@ -54,10 +54,16 @@ class minim(StatEffect):
         return max(val, getval(self._m, obj, cls))
 
 class default(StatEffect):
-    """Noneの場合は置き換える"""
-    def __init__(self, v): self._val = v
-    def get(self, val, obj, cls):
-        return getval(self._val, obj, cls) if val is None else val
+    """基本値を設定する"""
+    def __init__(self, v): self.__val = v
+    @StatAct.actmethod
+    def _default_init(self, obj):
+        obj._set_true_value(self.__name,
+                            getval(self.__val, obj, self.__cls))
+    def set_name(self, cls, name):
+        self.__name = name
+        self.__cls = cls
+        self._default_init.register(cls, name, self)
 
 class turn(StatEffect):
     """ターンごとに加算される値"""
@@ -69,4 +75,22 @@ class turn(StatEffect):
           + getval(self._val, obj, type(obj)))
     def set_name(self, cls, name):
         self._name = name
-        self._turn_act.register(cls)
+        self._turn_act.register(cls, name, self)
+
+class arg(StatEffect):
+    """コンストラクタの引数で設定できる"""
+    def __init__(self, default=None):
+        self.__default = default
+    @StatAct.actmethod
+    def _init(self, obj, value):
+        obj._set_true_value(self.__name,
+                            value)
+    @StatAct.actmethod
+    def _default_init(self, obj):
+        obj._set_true_value(self.__name,
+                            getval(self.__default, obj, self.__cls))
+    def set_name(self, cls, name):
+        self.__name = name
+        self.__cls = cls
+        self._init.register(cls, name, self)
+        self._default_init.register(cls, name, self)

@@ -1,17 +1,13 @@
 
 import pytest
 from game_status import *
-from game_status import buff
 
 @pytest.fixture
-@pytest.mark.xfail(
-    raises=(NameError, ModuleNotFoundError),
-    reason="テストに必要な依存関係がまだ作成されていません")
 def Status():
     class Status(GameObject):
-        STR = Value(arg(0), minim(0), grow(), buff())
+        STR = Value(arg(0), minim(0), grow(), buffed())
         maxHP = (STR + 1) * 10
-        HP = Point(minim(0), maxim(maxHP), default=arg(maxHP))
+        HP = Point(arg(maxHP), minim(0), maxim(maxHP))
     return Status
 
 
@@ -22,22 +18,20 @@ def test_defin_Status(Status):
 
 
 @pytest.fixture
-@pytest.mark.xfail(
-    raises=(NameError, ModuleNotFoundError),
-    reason="テストに必要な依存関係がまだ作成されていません")
 def MyBuff():
-    class MyBuff(Buff):
+    class MyBuff(buff.Buff):
         effect = Value(arg(default=1.))
         duration = Point(
             arg(default=10.),
-            per_turn(-1))
+            turn(-1))
 
         HP = buff.Add(effect)
         MP = buff.Add(-effect)
-        
+
         @property
         def is_disabled(self):
             return self.duration < 0
+        
     return MyBuff
 
 

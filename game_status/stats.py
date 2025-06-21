@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from .bases import StatEffect, StatBase, STATS, SVAL, getval
+from .bases import StatEffect, StatBase, STATS, SVAL, getval, StatAct
 import operator as op
 from mathobj import rjoins, MathObj
 
@@ -18,9 +18,13 @@ class Value(Stat):
     """筋力などの固定値"""
     def __init__(self, *ops:StatEffect):
         self._ops = ops
+    @StatAct.actmethod
+    def _set_true_value(self, obj, value):
+        setattr(obj, self._vname, value)
     def __set_name__(self, cls, name):
         self._vname = f'_{cls.__name__}__{name}_v'
         for o in self._ops: o.set_name(cls, name)
+        self._set_true_value.register(cls, name, self)
     def __get__(self, obj, cls=None):
         if obj is None: return self
         res = None
@@ -31,17 +35,19 @@ class Value(Stat):
 
 class Point(Stat):
     """HPなどの流動的な値"""
-    def __init__(self, *ops:StatEffect, default=None):
-        self._ops = ops ; self._def = default
+    def __init__(self, *ops:StatEffect):
+        self._ops = ops
+    @StatAct.actmethod
+    def _set_true_value(self, obj, value):
+        setattr(obj, self._vname, value)
     def __set_name__(self, cls, name):
         self._name = name
         self._vname = f'_{cls.__name__}__{name}_v'
         for o in self._ops: o.set_name(cls, name)
+        self._set_true_value.register(cls, name, self)
     def __get__(self, obj, cls=None):
         if obj is None: return self
-        if hasattr(obj, self._vname):
-            return getattr(obj, self._vname)
-        return getval(self._def, obj, cls)
+        return getattr(obj, self._vname)
     def __set__(self, obj, val):
         for b in self._ops: val = b.get(val, obj, type(obj))
         setattr(obj, self._vname, val)

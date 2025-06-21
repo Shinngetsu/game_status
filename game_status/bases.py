@@ -53,9 +53,9 @@ class StatAct:
         ```
         これはStatEffectがクラスの実装にちょっかい出すためのものです。
         """
-        def __init__(self, func): self.__func = func
+        def __init__(self, func): self._func = func
         @property
-        def name(self): return self.__func.__name__
+        def name(self): return self._func.__name__
         def register(self, cls, sname):
             """ステータスクラスに適用"""
             if not hasattr(cls, self.name):
@@ -64,7 +64,7 @@ class StatAct:
             assert isinstance(statact, StatAct)
             statact.register(sname, self)
         def __call__(self, obj, *a, **ka):
-            return self.__func(obj, *a, **ka)
+            return self._func(obj, *a, **ka)
         
     class actmethod(actfunc):
         """# 操作メソッド
@@ -79,7 +79,7 @@ class StatAct:
                 setattr(obj, self.target,
                     getattr(obj, self.target) + a)
             def register(self, cls):
-                self.heal.register(cls, self.target)
+                self.heal.register(cls, self.target, self)
         
         class Status(GameObject):
             HP = Point(minim(0), maxim(100), default=100)
@@ -94,8 +94,16 @@ class StatAct:
         ```
         これはStatEffectがクラスの実装にちょっかい出すためのものです。
         """
+        
+        def register(self, cls, sname, managed_obj):
+            """ステータスクラスに適用"""
+            if not hasattr(cls, self.name):
+                setattr(cls, self.name, StatAct())
+            statact = getattr(cls, self.name)
+            assert isinstance(statact, StatAct)
+            statact.register(sname, fts.partial(self, managed_obj))
         def __call__(self, iself, obj, *a, **ka):
-            return self.__func(iself, obj, *a, **ka)
+            return self._func(iself, obj, *a, **ka)
     
     def __init__(self, default=None):
         self._acts = {}
@@ -106,20 +114,40 @@ class StatAct:
     def register(self, name, act):
         """操作を登録する"""
         self._acts |= {name:act}
+    def callwith(self,
+                obj,
+                func:ctyping.Callable[
+                    [str],
+                    tuple[tuple, dict[str, typing.Any]]]):
+        for k, v in self._acts.items():
+            a, ka = func(k)
+            yield v(obj, *a, **ka)
+    def keys(self): return self._acts.keys()
+    def values(self): return self._acts.values()
+    def items(self): return self._acts.items()
     def __get__(self, obj, cls=None):
         if obj is None: return self
-        return fts.partial(self.__call__, obj)
-    def __call__(self, obj, name, *a, **ka):
-        """登録された操作を実行する"""
-        if name in self._acts: self._acts[name](obj, *a, **ka)
-        else: self._default(obj, name, *a, **ka)
+        def call(name, *a, **ka):
+            if name in self._acts: self._acts[name](obj, *a, **ka)
+            else: self._default(obj, name, *a, **ka)
+        return call
 
 class GameObject:
     """ゲームオブジェクトの素体"""
-    def __init__(self):
-        self._buffs = []
+    @StatAct
+    def _init(self, name, value):
+        """初期化時の値指定"""
+    @StatAct
+    def _default_init(self, name):
+        """初期化時に引数が指定されなかったときの値指定"""
+    def __init__(self, buffs=(), /, **ka):
+        self._buffs = list(buffs)
+        for k in GameObject._init.keys() | GameObject._default_init.keys():
+            if k in ka: self._init(k, ka[k])
+            else: self._default_init(k)
+        
     @property
-    def buffs(self) -> list[Buff]:
+    def buffs(self) -> list:
         """バフのリスト"""
         return self._buffs
     @StatAct

@@ -9,6 +9,6 @@ def test_defin_GameObjWithValue_NoErr():
 
 def test_defin_GameObjWithPoint_NoErr():
     class Status(GameObject):
-        HP = Point(default=100)
+        HP = Point(arg(100))
     ins = Status()
 
