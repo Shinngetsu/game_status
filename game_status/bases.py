@@ -133,7 +133,31 @@ class StatAct:
         return call
 
 class GameObject:
-    """ゲームオブジェクトの素体"""
+    """# ゲームオブジェクトの素体
+    このクラスを継承し各ステータス値を設定することで、キャラやアイテムの動作を作ります。いろいろと実装を含むので、もしそれが気に食わないなら集約で所持することをお勧めします。
+    ## 例
+    ```python
+    class Apple(GameObject):
+        freshness = Value(arg(100), turn(-1))
+        price = Value(default(20 * (freshness < 0)))
+        on_eat_HpRecover = (
+            (freshness >= 50) * 10 +
+            (freshness >= 0 ) * 20 +
+            -10)
+
+        name = "りんご" + "（腐敗）" * (freshness < 0)
+        description = (
+            "みずみずしい新鮮なりんご。" * (freshness >= 50) +
+            "ちょっとしんなりし始めているりんご。" * (50 > freshness >= 0) +
+            "ハエがたかり異臭を放つりんご。" * (freshness < 0) +
+            "食べると体力が" +
+            on_eat_HpRecover + "ポイント" +
+                "減少" * (on_eat_HpRecover <  0) +
+                "回復" * (on_eat_HpRecover >= 0) + "する。")
+
+        @property
+        def is_rotten(self): return self.freshness < 0
+    ```"""
     @StatAct
     def _init(self, name, value):
         """初期化時の値指定"""
