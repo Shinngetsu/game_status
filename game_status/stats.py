@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from .bases import StatEffect, StatBase, STATS, SVAL, getval, StatAct
+from .bases import StatEffect, StatBase, STATS, SVAL, getval, StatAct, getdep
 import operator as op
 from mathobj import rjoins, MathObj
 
@@ -21,10 +21,16 @@ class Value(Stat):
     @StatAct.actmethod
     def _set_true_value(self, obj, value):
         setattr(obj, self._vname, value)
+    @property
+    def _dependencies(self):
+        res = set()
+        for o in self._ops: res |= o.dependencies
+        return res
     def __set_name__(self, cls, name):
         self._vname = f'_{cls.__name__}__{name}_v'
         for o in self._ops: o.set_name(cls, name)
         self._set_true_value.register(cls, name, self)
+        super().__set_name__(cls, name)
     def __get__(self, obj, cls=None):
         if obj is None: return self
         res = None
@@ -32,6 +38,9 @@ class Value(Stat):
             res = getattr(obj, self._vname)
         for b in self._ops: res = b.get(res, obj, cls)
         return res
+    def __str__(self):
+        if self._has_name: return self._name
+        return f'Value({", ".join(str(i) for i in self._ops)})'
 
 class Point(Stat):
     """HPなどの流動的な値"""
@@ -40,21 +49,37 @@ class Point(Stat):
     @StatAct.actmethod
     def _set_true_value(self, obj, value):
         setattr(obj, self._vname, value)
+    @property
+    def _dependencies(self):
+        res = set()
+        for o in self._ops: res |= o.dependencies
+        return res
     def __set_name__(self, cls, name):
-        self._name = name
         self._vname = f'_{cls.__name__}__{name}_v'
         for o in self._ops: o.set_name(cls, name)
         self._set_true_value.register(cls, name, self)
+        super().__set_name__(cls, name)
     def __get__(self, obj, cls=None):
         if obj is None: return self
         return getattr(obj, self._vname)
     def __set__(self, obj, val):
         for b in self._ops: val = b.get(val, obj, type(obj))
         setattr(obj, self._vname, val)
+    def __str__(self):
+        if self._has_name: return self._name
+        return f'Point({", ".join(str(i) for i in self._ops)})'
 
 class Calc(Stat):
     """計算値"""
     def __init__(self, f, *a): self.func = f ; self.args = a
+    @property
+    def _dependencies(self):
+        res = set()
+        for o in self.args:
+            if isinstance(o, StatBase):
+                if o._has_name: res |= {o.__name}
+                else: res |= o._dependencies
+        return res
     def _binary(self, bf, b):
         if bf is self.func:
             return Calc(bf, *self.args, b) 
@@ -76,5 +101,8 @@ class Calc(Stat):
             for a in args[1:]:
                 val = self.func(val, a)
         return val
+    def __str__(self):
+        if self._has_name: return self._name
+        return f'{self.func.__name__}({", ".join(a for a in self.args)})'
 
 

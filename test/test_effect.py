@@ -8,6 +8,7 @@ def Status():
         pass
     return Status
 
+@pytest.mark.timeout(10)
 def test_minim(Status):
     eff = minim(0)
     eff.set_name(Status, 'VALUE')
@@ -16,6 +17,7 @@ def test_minim(Status):
     assert eff.get(50, ins, Status) == 50
     assert eff.get(-10, ins, Status) == 0
 
+@pytest.mark.timeout(10)
 def test_maxim(Status):
     eff = maxim(100)
     eff.set_name(Status, 'VALUE')

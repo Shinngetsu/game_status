@@ -1,4 +1,4 @@
-from .bases import StatEffect, StatAct, getval
+from .bases import StatEffect, StatAct, getval, StatBase, getdep
 
 class grow(StatEffect):
     """基礎値にレベルアップ概念を導入する"""
@@ -38,20 +38,33 @@ class buffed(StatEffect):
 class bonus(StatEffect):
     """基礎値に加算"""
     def __init__(self, attr): self._attr = attr
+    @StatAct.actmethod
+    def _get_dependency(self, obj):
+        if isinstance(self._attr, StatBase):
+            return {self._attr}
+        return set()
+    def set_name(self, cls, name):
+        self._get_dependency.register(cls, name, self)
     def get(self, val, obj, cls):
         return val + getval(self._attr, obj, cls)
+    @property
+    def dependencies(self): return getdep(self._attr)
 
 class maxim(StatEffect):
     """最大値"""
     def __init__(self, m): self._m = m
     def get(self, val, obj, cls):
         return min(val, getval(self._m, obj, cls))
+    @property
+    def dependencies(self): return getdep(self._m)
 
 class minim(StatEffect):
     """最小値"""
     def __init__(self, m): self._m = m
     def get(self, val, obj, cls):
         return max(val, getval(self._m, obj, cls))
+    @property
+    def dependencies(self): return getdep(self._m)
 
 class default(StatEffect):
     """基本値を設定する"""
@@ -64,6 +77,8 @@ class default(StatEffect):
         self.__name = name
         self.__cls = cls
         self._default_init.register(cls, name, self)
+    @property
+    def dependencies(self): return getdep(self.__val)
 
 class turn(StatEffect):
     """ターンごとに加算される値"""
@@ -76,6 +91,8 @@ class turn(StatEffect):
     def set_name(self, cls, name):
         self._name = name
         self._turn_act.register(cls, name, self)
+    @property
+    def dependencies(self): return getdep(self._val)
 
 class arg(StatEffect):
     """コンストラクタの引数で設定できる"""
@@ -94,3 +111,5 @@ class arg(StatEffect):
         self.__cls = cls
         self._init.register(cls, name, self)
         self._default_init.register(cls, name, self)
+    @property
+    def dependencies(self): return getdep(self.__default)

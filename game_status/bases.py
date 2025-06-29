@@ -1,4 +1,5 @@
 import abc, functools as fts
+import graphlib
 
 import typing, collections.abc as ctyping
 
@@ -119,6 +120,7 @@ class StatAct:
                 func:ctyping.Callable[
                     [str],
                     tuple[tuple, dict[str, typing.Any]]]):
+        "登録された処理をオブジェクトのステータス値ごとに呼び出す"
         for k, v in self._acts.items():
             a, ka = func(k)
             yield v(obj, *a, **ka)
@@ -164,12 +166,26 @@ class GameObject:
     @StatAct
     def _default_init(self, name):
         """初期化時に引数が指定されなかったときの値指定"""
+    @StatAct
+    def _get_dependency(self, name):
+        """処理の依存関係を取得"""
+        return set()
     def __init__(self, buffs=(), /, **ka):
         self._buffs = list(buffs)
-        for k in GameObject._init.keys() | GameObject._default_init.keys():
-            if k in ka: self._init(k, ka[k])
-            else: self._default_init(k)
-        
+        ordered = graphlib.TopologicalSorter(
+            self._dependency_graph).static_order()
+        for n in ordered:
+            if n in ka: self._init(n, ka[n])
+            else: self._default_init(n)
+    _dependency_graph = {} # {name: {other, ...}, ...}
+    def __init_subclass__(cls):
+        for k, v in tuple(vars(cls).items()):
+            if isinstance(v, StatBase):
+                cls._dependency_graph |= {k:v._dependencies}
+        try: graphlib.TopologicalSorter(cls._dependency_graph).prepare()
+        except graphlib.CycleError:
+            raise Exception("依存関係の循環を検知しました。")
+
     @property
     def buffs(self) -> list:
         """バフのリスト"""
@@ -193,11 +209,21 @@ class StatEffect(typing.Generic[STATS, SVAL]):
     def get(self, val:SVAL, obj:STATS, cls:type[STATS]) -> SVAL:
         """Attrディスクリプタの__get__が呼び出されたときに呼ばれる"""
         return val
+    @property
+    def dependencies(self) -> set[str]:
+        return set()
 
 class StatBase(typing.Generic[STATS, SVAL]):
     """ステータス値のディスクリプタ"""
+    @property
+    def _name(self) -> str: return self.__name
+    @property
+    def _has_name(self) -> bool: return hasattr(self, "_StatBase__name")
+    @property
+    def _dependencies(self) -> set[str]: return set()
     def __set_name__(self, cls:type[STATS], name:str):
         """宣言時に呼び出される"""
+        self.__name = name
     def __get__(self, obj:STATS|None, cls:type[STATS]|None=None) -> SVAL:
         """ステータス値を取得する"""
         if obj is None: return self
@@ -210,3 +236,7 @@ def getval(
     """ステータスなら値取得、さもなくばaをそのまま返す"""
     if isinstance(a, StatBase): return a.__get__(obj, cls)
     return a
+def getdep(a:VALUELIKE):
+    """ステータスの依存関係を取得する"""
+    if isinstance(a, StatBase): return a._dependencies
+    return set()
