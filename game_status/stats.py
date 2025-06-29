@@ -38,9 +38,9 @@ class Value(Stat):
             res = getattr(obj, self._vname)
         for b in self._ops: res = b.get(res, obj, cls)
         return res
-    def __str__(self):
+    def __repr__(self):
         if self._has_name: return self._name
-        return f'Value({", ".join(str(i) for i in self._ops)})'
+        return f'Value({", ".join(repr(i) for i in self._ops)})'
 
 class Point(Stat):
     """HPなどの流動的な値"""
@@ -62,46 +62,30 @@ class Point(Stat):
     def __get__(self, obj, cls=None):
         if obj is None: return self
         return getattr(obj, self._vname)
-    def __set__(self, obj, val):
-        for b in self._ops: val = b.get(val, obj, type(obj))
-        setattr(obj, self._vname, val)
-    def __str__(self):
-        if self._has_name: return self._name
-        return f'Point({", ".join(str(i) for i in self._ops)})'
 
 class Calc(Stat):
     """計算値"""
-    def __init__(self, f, *a): self.func = f ; self.args = a
+    def __init__(self, f, *a, **ka):
+        self.func = f ; self.args = a
+        self.kwargs = ka
     @property
     def _dependencies(self):
         res = set()
-        for o in self.args:
+        for o in list(self.args) + list(self.kwargs.values()):
             if isinstance(o, StatBase):
-                if o._has_name: res |= {o.__name}
+                if o._has_name: res |= {o._name}
                 else: res |= o._dependencies
         return res
-    def _binary(self, bf, b):
-        if bf is self.func:
-            return Calc(bf, *self.args, b) 
-        return Calc(bf, self, b)
-    def _rbinary(self, bf, a):
-        if bf is self.func:
-            return Calc(bf, a, *self.args) 
-        return Calc(bf, a, self)
     def __get__(self, obj, cls=None):
         if obj is None: return self
+        func = getval(self.func, obj, cls)
         if self.func in rjoins:
-            args = [getval(a, obj, cls) for a in self.args[::-1]]
-            val = args[0]
-            for a in args[1:]:
-                val = self.func(a, val)
+            args = [getval(a, obj, cls) for a in self.args[::-1]][::-1]
         else:
             args = [getval(a, obj, cls) for a in self.args]
-            val = args[0]
-            for a in args[1:]:
-                val = self.func(val, a)
-        return val
-    def __str__(self):
+        ka = {k:getval(v, obj, cls) for k, v in self.kwargs.items()}
+        return func(*args, **ka)
+    def __repr__(self):
         if self._has_name: return self._name
         return f'{self.func.__name__}({", ".join(a for a in self.args)})'
 

@@ -181,7 +181,9 @@ class GameObject:
     def __init_subclass__(cls):
         for k, v in tuple(vars(cls).items()):
             if isinstance(v, StatBase):
-                cls._dependency_graph |= {k:v._dependencies}
+                cls._dependency_graph = (
+                    cls._dependency_graph |
+                    {k:v._dependencies})
         try: graphlib.TopologicalSorter(cls._dependency_graph).prepare()
         except graphlib.CycleError:
             raise Exception("依存関係の循環を検知しました。")
@@ -201,24 +203,39 @@ class GameObject:
         for n, v in vars(type(self)).items():
             if isinstance(v, StatBase): self._turn_act(self, n)
         for b in self.buffs[:]: b.turn(self.buffs)
+    def __repr__(self):
+        res = self.__class__.__name__
+        res += "(" + ', '.join(
+            f'{k}= {repr(v)}'
+            for k, v in vars(self).items()
+            if not callable(v)) + ")"
+        return res
 
 class StatEffect(typing.Generic[STATS, SVAL]):
     """ステータス値への効果"""
     def set_name(self, cls:type[STATS], name:str):
         """Attrディスクリプタの__set_name__が呼び出されたときに呼ばれる"""
+        self.__name = name
     def get(self, val:SVAL, obj:STATS, cls:type[STATS]) -> SVAL:
         """Attrディスクリプタの__get__が呼び出されたときに呼ばれる"""
         return val
     @property
     def dependencies(self) -> set[str]:
         return set()
+    def __repr__(self):
+        res = self.__class__.__name__
+        res += "(" + ', '.join(
+            f'{k}= {repr(v)}'
+            for k, v in vars(self).items()
+            if not callable(v)) + ")"
+        return res
 
 class StatBase(typing.Generic[STATS, SVAL]):
     """ステータス値のディスクリプタ"""
     @property
     def _name(self) -> str: return self.__name
     @property
-    def _has_name(self) -> bool: return hasattr(self, "_StatBase__name")
+    def _has_name(self) -> bool: return "_StatBase__name" in dir(self)
     @property
     def _dependencies(self) -> set[str]: return set()
     def __set_name__(self, cls:type[STATS], name:str):
@@ -227,6 +244,13 @@ class StatBase(typing.Generic[STATS, SVAL]):
     def __get__(self, obj:STATS|None, cls:type[STATS]|None=None) -> SVAL:
         """ステータス値を取得する"""
         if obj is None: return self
+    def __repr__(self):
+        res = self.__class__.__name__
+        res += "(" + ', '.join(
+            f'{k}= {repr(v)}'
+            for k, v in vars(self).items()
+            if not callable(v)) + ")"
+        return res
 
 VALUELIKE = StatBase[STATS, SVAL] | SVAL
 
