@@ -1,21 +1,23 @@
 
 import abc
-from .bases import StatAct, STATS, SVAL, VALUELIKE, getval, StatEffect
+from .bases import (
+    StatAct, STATS, SVAL, VALUELIKE,
+    getval, StatEffect, HasStatus)
 from .stats import Stat, StatBase
 
 from typing import Self, Any
 
-class Buff:
+class Buff(HasStatus):
     """## 各ステータス値へのバフを適用する
     サブクラスで実装したバフステータスは、
     対象となるゲームオブジェクトのステータス値に効果を与える"""
     def turn(self, stat:STATS):
-        for d in dir(self):
-            self.act(d, stat)
+        for d in dir(self): self.act(d, stat)
     @property
     def is_disabled(self) -> bool: return True
     effect = StatAct()
     act = StatAct()
+
 
 # バフステータス
 class ActiveBuffStatus(Stat): pass

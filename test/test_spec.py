@@ -3,18 +3,23 @@ import pytest, time
 from game_status import *
 
 @pytest.mark.timeout(10)
-def test_defin_Status():
+def test_Status():
     class Status(GameObject):
         STR = Value(arg(0), minim(0), grow(), buffed())
         maxHP = (STR + 1) * 10
         HP = Point(arg(maxHP), minim(0), maxim(maxHP))
+
     ins = Status(STR = 2)
     assert ins.maxHP == 30
     assert ins.HP == ins.maxHP
 
 
 @pytest.mark.timeout(10)
-def test_defin_Buff():
+def test_Buff_WorkInStatus():
+    class Status(GameObject):
+        HP = Point(arg(100), minim(0), maxim(100))
+        MP = Point(arg(100), minim(0), maxim(100))
+    
     class MyBuff(buff.Buff):
         effect = Value(arg(default=1.))
         duration = Point(
@@ -27,7 +32,13 @@ def test_defin_Buff():
         @property
         def is_disabled(self):
             return self.duration < 0
-    ins = MyBuff()
+    
+    buff_tgt = Status(HP = 50, MP = 100)
+    buff_tgt.buffs.append(MyBuff(duration = 10))
+    for t in range(10):
+        assert buff_tgt.HP == t + 50
+        assert buff_tgt.MP == 100 - t
+        buff_tgt.turn()
 
 
 @pytest.mark.timeout(10)
@@ -52,9 +63,7 @@ def test_defin_Apple():
 
         @property
         def is_rotten(self): return self.freshness < 0
-
-        def __repr__(self):
-            return f"{self.__class__.__name__}({self.freshness=}, {self.price=})"
+        
     ins = Apple(freshness=100)
     assert ins.is_rotten == False
     assert ins.name == "りんご"

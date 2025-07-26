@@ -134,7 +134,63 @@ class StatAct:
             else: self._default(obj, name, *a, **ka)
         return call
 
-class GameObject:
+class StatBase(typing.Generic[STATS, SVAL]):
+    """ステータス値のディスクリプタ"""
+    @property
+    def _name(self) -> str: return self.__name
+    @property
+    def _has_name(self) -> bool: return "_StatBase__name" in dir(self)
+    @property
+    def _dependencies(self) -> set[str]: return set()
+    def __set_name__(self, cls:type[STATS], name:str):
+        """宣言時に呼び出される"""
+        self.__name = name
+    def __get__(self, obj:STATS|None, cls:type[STATS]|None=None) -> SVAL:
+        """ステータス値を取得する"""
+        if obj is None: return self
+    def __repr__(self):
+        res = self.__class__.__name__
+        res += "(" + ', '.join(
+            f'{k}= {repr(v)}'
+            for k, v in vars(self).items()
+            if not callable(v)) + ")"
+        return res
+
+class HasStatus:
+    """# ステータスを所持するオブジェクト
+        - クラス生成時の依存関係チェック
+        - プロパティ初期化"""
+    @StatAct
+    def _init(self, name, value):
+        """初期化時の値指定"""
+    @StatAct
+    def _default_init(self, name):
+        """初期化時に引数が指定されなかったときの値指定"""
+    def __init__(self, **ka):
+        ordered = graphlib.TopologicalSorter(
+            self._dependency_graph).static_order()
+        for n in ordered:
+            if n in ka: self._init(n, ka[n])
+            else: self._default_init(n)
+    _dependency_graph = {} # {name: {other, ...}, ...}
+    def __init_subclass__(cls):
+        for k, v in tuple(vars(cls).items()):
+            if isinstance(v, StatBase):
+                cls._dependency_graph = (
+                    cls._dependency_graph |
+                    {k:v._dependencies})
+        try: graphlib.TopologicalSorter(cls._dependency_graph).prepare()
+        except graphlib.CycleError:
+            raise Exception("依存関係の循環を検知しました。")
+    def __repr__(self):
+        res = self.__class__.__name__
+        res += "(" + ', '.join(
+            f'{k}= {repr(v)}'
+            for k, v in vars(self).items()
+            if not callable(v)) + ")"
+        return res
+
+class GameObject(HasStatus):
     """# ゲームオブジェクトの素体
     このクラスを継承し各ステータス値を設定することで、キャラやアイテムの動作を作ります。いろいろと実装を含むので、もしそれが気に食わないなら集約で所持することをお勧めします。
     ## 例
@@ -160,56 +216,29 @@ class GameObject:
         @property
         def is_rotten(self): return self.freshness < 0
     ```"""
-    @StatAct
-    def _init(self, name, value):
-        """初期化時の値指定"""
-    @StatAct
-    def _default_init(self, name):
-        """初期化時に引数が指定されなかったときの値指定"""
-    @StatAct
-    def _get_dependency(self, name):
-        """処理の依存関係を取得"""
-        return set()
+    
     def __init__(self, buffs=(), /, **ka):
         self._buffs = list(buffs)
-        ordered = graphlib.TopologicalSorter(
-            self._dependency_graph).static_order()
-        for n in ordered:
-            if n in ka: self._init(n, ka[n])
-            else: self._default_init(n)
-    _dependency_graph = {} # {name: {other, ...}, ...}
-    def __init_subclass__(cls):
-        for k, v in tuple(vars(cls).items()):
-            if isinstance(v, StatBase):
-                cls._dependency_graph = (
-                    cls._dependency_graph |
-                    {k:v._dependencies})
-        try: graphlib.TopologicalSorter(cls._dependency_graph).prepare()
-        except graphlib.CycleError:
-            raise Exception("依存関係の循環を検知しました。")
+        super().__init__(**ka)
 
     @property
     def buffs(self) -> list:
         """バフのリスト"""
         return self._buffs
     @StatAct
-    def _turn_act(self, name):
+    def _turn_act(self, name:str):
         """ターン経過時の各ステータス値に対する処理"""
-    def _turn(self):
+    def _pre_turn(self):
         """ターン経過時の一般処理(オーバーライドして使用)"""
+    def _post_turn(self):
+        """ターン経過後の一般処理(オーバーライドして使用)"""
     def turn(self):
         """ターン経過時の処理を実行"""
-        self._turn()
+        self._pre_turn()
         for n, v in vars(type(self)).items():
-            if isinstance(v, StatBase): self._turn_act(self, n)
-        for b in self.buffs[:]: b.turn(self.buffs)
-    def __repr__(self):
-        res = self.__class__.__name__
-        res += "(" + ', '.join(
-            f'{k}= {repr(v)}'
-            for k, v in vars(self).items()
-            if not callable(v)) + ")"
-        return res
+            if isinstance(v, StatBase): self._turn_act(n)
+        for b in self.buffs[:]: b.turn(self)
+        self._post_turn()
 
 class StatEffect(typing.Generic[STATS, SVAL]):
     """ステータス値への効果"""
@@ -222,28 +251,6 @@ class StatEffect(typing.Generic[STATS, SVAL]):
     @property
     def dependencies(self) -> set[str]:
         return set()
-    def __repr__(self):
-        res = self.__class__.__name__
-        res += "(" + ', '.join(
-            f'{k}= {repr(v)}'
-            for k, v in vars(self).items()
-            if not callable(v)) + ")"
-        return res
-
-class StatBase(typing.Generic[STATS, SVAL]):
-    """ステータス値のディスクリプタ"""
-    @property
-    def _name(self) -> str: return self.__name
-    @property
-    def _has_name(self) -> bool: return "_StatBase__name" in dir(self)
-    @property
-    def _dependencies(self) -> set[str]: return set()
-    def __set_name__(self, cls:type[STATS], name:str):
-        """宣言時に呼び出される"""
-        self.__name = name
-    def __get__(self, obj:STATS|None, cls:type[STATS]|None=None) -> SVAL:
-        """ステータス値を取得する"""
-        if obj is None: return self
     def __repr__(self):
         res = self.__class__.__name__
         res += "(" + ', '.join(
