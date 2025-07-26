@@ -1,8 +1,9 @@
 # coding: utf-8
 
-from .bases import StatEffect, StatBase, STATS, SVAL, getval, StatAct, getdep
+from .bases import StatBase, STATS, SVAL, getval, StatAct, getdep
 import operator as op
 from mathobj import rjoins, MathObj
+import typing
 
 class Stat(StatBase[STATS, SVAL], MathObj):
     """# ステータス値のディスクリプタ
@@ -31,6 +32,37 @@ class Stat(StatBase[STATS, SVAL], MathObj):
     def __getattr__(self, k): return Calc(getattr, self, k)
     def __getitem__(self, k): return Calc(op.getitem, self, k)
     def __call__(self, *a, **ka): return Calc(self, *a, **ka)
+
+
+class StatEffect(typing.Generic[STATS, SVAL]):
+    """# ステータス値への効果
+    ValueやPointに設定できるエフェクトの基本クラスです。
+    ```python
+    from game_status import *
+    class MyStatEffect(StatEffect):
+        def set_name(self, cls, name):
+            print(f'MyStatEffect.set_name called! ({cls=}, {name=})')
+        def get(self, val, obj, cls):
+            print(f'MyStatEffect.get called! ({val=}, {obj=}, {cls=})')
+            return val
+    ```"""
+    def set_name(self, cls:type[STATS], name:str):
+        """Attrディスクリプタの__set_name__が呼び出されたときに呼ばれる"""
+        self.__name = name
+    def get(self, val:SVAL, obj:STATS, cls:type[STATS]) -> SVAL:
+        """Attrディスクリプタの__get__が呼び出されたときに呼ばれる"""
+        return val
+    @property
+    def dependencies(self) -> set[str]:
+        return set()
+    def __repr__(self):
+        res = self.__class__.__name__
+        res += "(" + ', '.join(
+            f'{k}= {repr(v)}'
+            for k, v in vars(self).items()
+            if not callable(v)) + ")"
+        return res
+
 
 class Value(Stat):
     """筋力などの固定値"""

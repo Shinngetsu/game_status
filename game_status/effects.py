@@ -1,4 +1,5 @@
-from .bases import StatEffect, StatAct, getval, StatBase, getdep
+from .bases import StatAct, getval, StatBase, getdep
+from .stats import StatEffect
 
 class grow(StatEffect):
     """基礎値にレベルアップ概念を導入する"""
