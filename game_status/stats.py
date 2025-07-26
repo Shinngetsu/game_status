@@ -4,9 +4,27 @@ from .bases import StatEffect, StatBase, STATS, SVAL, getval, StatAct, getdep
 import operator as op
 from mathobj import rjoins, MathObj
 
-# 属性
 class Stat(StatBase[STATS, SVAL], MathObj):
-    """ステータス値のディスクリプタ"""
+    """# ステータス値のディスクリプタ
+    ValueやPointの計算式としての実装。
+    ```python
+    # 定義
+    class MyStat(Stat):
+        def __init__(self, value):
+            self.__value = value
+        def __get__(self, obj, cls=None):
+            if obj is None: return self
+            return self.__value
+    
+    # 使用
+    class Stats(GameObject):
+        A = MyStat(100)
+        B = A * 2
+    
+    obj = Stats()
+    assert obj.A == 100
+    assert obj.B == 200
+    ```"""
     def _unary(self, uf): return Calc(uf, self)
     def _binary(self, bf, b): return Calc(bf, self, b)
     def _rbinary(self, bf, a): return Calc(bf, a, self)

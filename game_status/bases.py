@@ -1,3 +1,21 @@
+# coding: utf-8
+'''
+# 基本の定義
+- class StatAct
+  - ステータス値に紐づく操作
+- class StatBase
+  - ステータス値のディスクリプタ
+- class HasStatus
+  - ステータスを所持するオブジェクトの基本クラス
+- class GameObject
+  - ゲームオブジェクトの素体
+- class StatEffect
+  - ステータス値への効果
+- def getval(VALUELIKE, STATS, type[STATS])
+  - ステータスなら値取得、さもなくばaをそのまま返す
+- def getdep(VALUELIKE)
+  - ステータスの依存関係を取得する
+'''
 import abc, functools as fts
 import graphlib
 
@@ -39,12 +57,13 @@ class StatAct:
         - クラスのStatAct要素に登録できる
         ### 使用例
         ```python
+        from game_status import *
         @StatAct.actfunc # 操作
         def heal(obj, a):
             obj.HP += a
         
         class Status(GameObject):
-            HP = Point(minim(0), maxim(100), default=100)
+            HP = Point(arg(default=100), minim(0), maxim(100))
         # できあいの定義に登録
         heal.register(Status, "HP")
 
@@ -135,7 +154,9 @@ class StatAct:
         return call
 
 class StatBase(typing.Generic[STATS, SVAL]):
-    """ステータス値のディスクリプタ"""
+    '''# ステータス値のディスクリプタ
+    HasStatusが想定するステータスの実装
+    '''
     @property
     def _name(self) -> str: return self.__name
     @property
@@ -157,9 +178,25 @@ class StatBase(typing.Generic[STATS, SVAL]):
         return res
 
 class HasStatus:
-    """# ステータスを所持するオブジェクト
-        - クラス生成時の依存関係チェック
-        - プロパティ初期化"""
+    """# ステータスを所持するオブジェクトの基本クラス
+    ステータス値の依存関係グラフをチェックし、正しい順番で初期化します。
+    
+    ```python
+    from game_status import *
+    # エラーします
+    class InvalidObj(HasStatus):
+        A = Point(arg(default=B+3)) # Bに依存
+        B = A + 30 # Aに依存
+    
+    # エラーしません
+    class SafeObj(HasStatus):
+        A = Point(arg(default=B)) # Bに依存
+        B = Point(arg(default=100)) # 依存なし
+    obj = SafeObj(B = 200) # B -> A の順番で初期化されます
+    assert obj.A == 200
+    assert obj.B == 200
+    ```
+    """
     @StatAct
     def _init(self, name, value):
         """初期化時の値指定"""
@@ -241,7 +278,18 @@ class GameObject(HasStatus):
         self._post_turn()
 
 class StatEffect(typing.Generic[STATS, SVAL]):
-    """ステータス値への効果"""
+    """# ステータス値への効果
+    ステータス値に設定することで様々な効果を適用するエフェクトクラスの基本クラスです。
+    エフェクトがどのように使われるかはステータスの実装次第です。
+    ```python
+    from game_status import *
+    class MyStatEffect(StatEffect):
+        def set_name(self, cls, name):
+            print(f'MyStatEffect.set_name called! ({cls=}, {name=})')
+        def get(self, val, obj, cls):
+            print(f'MyStatEffect.get called! ({val=}, {obj=}, {cls=})')
+            return val
+    ```"""
     def set_name(self, cls:type[STATS], name:str):
         """Attrディスクリプタの__set_name__が呼び出されたときに呼ばれる"""
         self.__name = name

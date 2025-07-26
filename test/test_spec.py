@@ -38,7 +38,12 @@ def test_Buff_WorkInStatus():
     for t in range(10):
         assert buff_tgt.HP == t + 50
         assert buff_tgt.MP == 100 - t
+        assert len(buff_tgt.buffs) == 1
         buff_tgt.turn()
+    
+    assert buff_tgt.HP == 60
+    assert buff_tgt.MP == 90
+    assert len(buff_tgt.buffs) == 0
 
 
 @pytest.mark.timeout(10)
